@@ -1,23 +1,42 @@
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+import re
 
 
 class SkillMatcher:
 
-    def __init__(self):
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
-
     def calculate_similarity(self, candidate_text, job_description):
+        """
+        Lightweight keyword-based semantic-style matching.
+        Designed for low-memory deployment.
+        """
 
-        candidate_embedding = self.model.encode([candidate_text])
-        job_embedding = self.model.encode([job_description])
+        candidate_words = set(
+            re.findall(r"\b[a-zA-Z][a-zA-Z0-9+#.-]*\b",
+                       candidate_text.lower())
+        )
 
-        similarity = cosine_similarity(
-            candidate_embedding,
-            job_embedding
-        )[0][0]
+        job_words = set(
+            re.findall(r"\b[a-zA-Z][a-zA-Z0-9+#.-]*\b",
+                       job_description.lower())
+        )
 
-        return round(float(similarity) * 100, 2)
+        if not job_words:
+            return 0.0
+
+        common_words = candidate_words.intersection(job_words)
+
+        # Ignore very common English words
+        stop_words = {
+            "the", "and", "or", "a", "an", "to", "of", "in",
+            "for", "with", "on", "is", "are", "be", "this",
+            "that", "as", "by", "from", "will", "should",
+            "have", "has", "candidate", "role", "work"
+        }
+
+        useful_matches = common_words - stop_words
+
+        score = (len(useful_matches) / max(len(job_words - stop_words), 1)) * 100
+
+        return round(min(score, 100), 2)
 
     def find_skill_gaps(self, candidate_text, required_skills):
 
@@ -28,9 +47,14 @@ class SkillMatcher:
 
         for skill in required_skills:
 
-            if skill.lower() in candidate_text_lower:
-                matched.append(skill)
+            skill_clean = skill.strip()
+
+            if not skill_clean:
+                continue
+
+            if skill_clean.lower() in candidate_text_lower:
+                matched.append(skill_clean)
             else:
-                missing.append(skill)
+                missing.append(skill_clean)
 
         return matched, missing
