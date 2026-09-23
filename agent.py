@@ -23,7 +23,8 @@ class CandidateMatchingAgent:
 
         score = self.matcher.calculate_similarity(
             candidate_text,
-            job_description
+            job_description,
+            required_skills
         )
 
         matched_skills, missing_skills = (
